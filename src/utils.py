@@ -14,7 +14,7 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 
 """
-Torch version of SSIM
+Torch version of SSIM (from Internet)
 -----------------------------------------
 
 Including functions:
