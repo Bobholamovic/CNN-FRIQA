@@ -119,8 +119,8 @@ def train_iqa(args):
     val_loader = torch.utils.data.DataLoader(
         IQADataset(data_dir, 'val', list_dir=list_dir, 
         ptch_size=patch_size, n_ptchs=n_ptchs, sample_once=True),
-        batch_size=1, shuffle=False, num_workers=1,
-        pin_memory=False
+        batch_size=1, shuffle=False, num_workers=0,
+        pin_memory=True
     )
 
     optimizer = torch.optim.Adam(model.parameters(), 
@@ -232,7 +232,7 @@ def test_iqa(args):
     batch_size = 1
 
     num_workers = args.workers
-    phase = args.phase
+    subset = args.subset
     data_dir = args.data_dir
     list_dir = args.list_dir
     resume = args.resume
@@ -243,9 +243,11 @@ def test_iqa(args):
     model = IQANet()
 
     test_loader = torch.utils.data.DataLoader(
-        IQADataset(data_dir, phase, list_dir=list_dir, 
-        ptch_size=args.patch_size, n_ptchs=args.n_ptchs_per_img), 
-        batch_size=batch_size, shuffle=False, num_workers=num_workers
+        IQADataset(data_dir, phase='test', list_dir=list_dir, 
+        ptch_size=args.patch_size, n_ptchs=args.n_ptchs_per_img,
+        subset=subset), 
+        batch_size=batch_size, shuffle=False,
+        num_workers=num_workers, pin_memory=True
     )
 
     cudnn.benchmark = True
@@ -272,7 +274,7 @@ def parse_args():
     parser.add_argument('-l', '--list-dir', default=None,
                         help='List dir to look for train_images.txt etc. '
                              'It is the same with --data-dir if not set.')
-    parser.add_argument('-n', '--n-ptchs-per-img', type=int, default=16, metavar='N', 
+    parser.add_argument('-n', '--n-ptchs-per-img', type=int, default=32, metavar='N', 
                         help='number of patches for each image (default: 16)')
     parser.add_argument('-p', '--patch-size', type=int, default=32, metavar='P', 
                         help='patch size (default: 32)')
@@ -288,8 +290,8 @@ def parse_args():
                         metavar='W', help='weight decay (default: 1e-4)')
     parser.add_argument('--resume', default='', type=str, metavar='PATH',
                         help='path to latest checkpoint')
-    parser.add_argument('--workers', type=int, default=4)
-    parser.add_argument('--phase', default='test')
+    parser.add_argument('--workers', type=int, default=8)
+    parser.add_argument('--subset', default='test')
     parser.add_argument('--evaluate', dest='evaluate',
                         action='store_true',
                         help='evaluate model on validation set')

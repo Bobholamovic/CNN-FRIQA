@@ -13,12 +13,14 @@ from utils import limited_instances
 INVALID_VALUE = -1.0
 
 class IQADataset(torch.utils.data.Dataset):
-    def __init__(self, data_dir, phase, ptch_size=32, n_ptchs=16, sample_once=False, list_dir=None):
+    def __init__(self, data_dir, phase, ptch_size=32, n_ptchs=16, sample_once=False, \
+                    subset='', list_dir=None):
         super(IQADataset, self).__init__()
 
         self.list_dir = data_dir if list_dir is None else list_dir
         self.data_dir = data_dir
         self.phase = phase
+        self.subset = phase if not len(subset) else subset
         self.ptch_size = ptch_size
         self.n_ptchs = n_ptchs
         self.img_list = None
@@ -42,7 +44,7 @@ class IQADataset(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         global INVALID_VALUE
-
+        
         img = io.imread(join(self.data_dir, self.img_list[index]))
         ref = io.imread(join(self.data_dir, self.ref_list[index]))
         score = INVALID_VALUE
@@ -83,9 +85,9 @@ class IQADataset(torch.utils.data.Dataset):
             self._cache(index).store(self.__getitem__(index))
 
     def _read_lists(self):
-        img_path = join(self.list_dir, self.phase + '_images.txt')
-        ref_path = join(self.list_dir, self.phase + '_labels.txt')
-        score_path = join(self.list_dir, self.phase + '_scores.txt')
+        img_path = join(self.list_dir, self.subset + '_images.txt')
+        ref_path = join(self.list_dir, self.subset + '_labels.txt')
+        score_path = join(self.list_dir, self.subset + '_scores.txt')
 
         assert exists(img_path)
 
