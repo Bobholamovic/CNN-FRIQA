@@ -121,6 +121,12 @@ class Transforms:
     3. Too complex decorators, not pythonic
     4. The number of params of the wrapper and the inner function should
         be the same to avoid confusion
+    5. The use of params and isinstance() is not so elegant. For this, 
+        consider to stipulate a fix number and type of returned values for
+        inner tf functions and do all the forwarding and passing work inside
+        the decorator. tf_func applies transformation, which is all it does. 
+    6. Performance has not been optimized at all
+    7. Doc it
     """
     def __init__(self):
         super(Transforms, self).__init__()
@@ -129,13 +135,11 @@ class Transforms:
         def transform(self, img, ref=None, *args, **kwargs):
             """ image shape (w, h, c) """
             ret = tf_func(self, img, *args, **kwargs)
-            if isinstance(ret, tuple):
-                img_tf = ret[0]
-            else:
-                img_tf = ret
+            img_tf = ret[0] if isinstance(ret, tuple) else ret
             if ref is None:
                 return img_tf
             else:
+                ## No check of key existance here
                 kwargs['params'] = ret[1:]  # Add returned parameters to dict
                 ref_tf = tf_func(self, ref, *args, **kwargs)
                 return img_tf, ref_tf
