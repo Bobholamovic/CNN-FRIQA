@@ -76,7 +76,8 @@ class IQANet(nn.Module):
 
         # Fusion layers
         self.cl1 = SingleConv(384, 128)
-        self.cl2 = SingleConv(128, 64)
+        # self.cl2 = SingleConv(128, 64)
+        self.cl2 = nn.Conv2d(128, 64, kernel_size=2)
         # Wulala stop here
 
         # Regression layers
@@ -117,9 +118,10 @@ class IQANet(nn.Module):
 
         flatten = f_com.view(f_com.shape[0], -1)
 
-        y = self.dropout(flatten)
-        y = self.rl1(y)
-        y = self.dropout(y)
+        # y = self.dropout(flatten)
+        # y = self.rl1(y)
+        # y = self.dropout(y)
+        y = self.rl1(flatten)
         y = self.rl2(y)
 
         # Calculate average score for each image
