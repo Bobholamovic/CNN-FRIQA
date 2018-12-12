@@ -4,6 +4,7 @@ Some Useful Functions and Classes
 
 import math
 from abc import ABCMeta, abstractmethod
+from threading import Lock
 
 import shutil
 import numpy as np
@@ -175,21 +176,39 @@ class RMSE(Metric):
         return np.sqrt(((x2 - x1) ** 2).mean())
 
 
-def save_checkpoint(state, is_best, filename='checkpoint.pkl'):
-    torch.save(state, filename)
-    if is_best:
-        shutil.copyfile(filename, '../models/model_best.pkl')
-
 def limited_instances(n):
-    # Note that this might be multi-thread unsafe
     def decorator(cls):
         _instances = {}
-        def _wrapper(idx, *args, **kwargs):
+        _lock = Lock()
+        def wrapper(idx, *args, **kwargs):
             nonlocal _instances
-            if idx < n:
-                if _instances.get(idx) is None: _instances[idx] = cls(*args, **kwargs)                   
-            else:
-                raise ValueError('index exceeds maximum number of instances')
-            return _instances[idx]
-        return _wrapper
+            with _lock:
+                if idx < n:
+                    if _instances.get(idx) is None: _instances[idx] = cls(*args, **kwargs)                   
+                else:
+                    raise ValueError('index exceeds maximum number of instances')
+                return _instances[idx]
+        return wrapper
     return decorator
+
+
+class SimpleProgressBar:
+    def __init__(self, total_len, pat='#', bar_len=50, show_step=False, print_freq=1):
+        self.len = total_len
+        self.pat = pat
+        self.bar_len = 50
+        self.show_step=show_step
+        self.print_freq = print_freq
+
+    def show(self, cur, disp_str):
+        cur_bar_len = int((cur/self.len)*self.bar_len)
+        cur_bar = '|'+self.pat*cur_bar_len+' '*(self.bar_len-cur_bar_len)+'|'
+        
+        if self.show_step:
+            if (cur % self.print_freq) == 0: print("{0}\t\t{1}".format(disp_str, cur_bar), end='\n')
+            return 
+        if cur < self.len:
+            print("{0}\t\t{1}".format(disp_str, cur_bar), end='\r')
+        else:
+            print("{0}\t\t{1}".format(disp_str, cur_bar), end='\n')
+

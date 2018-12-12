@@ -14,7 +14,6 @@ import numpy as np
 import shutil
 import argparse
 import json
-import logging
 from PIL import Image
 
 import torch
@@ -25,17 +24,17 @@ from torch import nn
 
 from model import IQANet
 from dataset import IQADataset
-from utils import AverageMeter, save_checkpoint, SROCC, PLCC, RMSE
-
-FORMAT = "[%(asctime)-15s %(filename)s:%(lineno)d %(funcName)s] %(message)s"
-logging.basicConfig(format=FORMAT)
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+from utils import AverageMeter, SROCC, PLCC, RMSE
+from utils import SimpleProgressBar as ProgressBar
 
 
-def validate(val_loader, model, criterion, print_freq=256):
+def validate(val_loader, model, criterion):
     losses = AverageMeter()
     srocc = SROCC()
+    len_val = len(val_loader)
+    pb = ProgressBar(len_val-1)
+
+    print("Validation")
 
     # Switch to evaluate mode
     model.eval()
@@ -54,19 +53,23 @@ def validate(val_loader, model, criterion, print_freq=256):
             score = score.cpu().data
             srocc.update(score.numpy(), output.numpy())
 
-            if i % print_freq == 0:
-                logger.info('Test: [{0}/{1}]\t'
-                            'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                            'Output {out:.4f}\t'
-                            'Target {tar:.4f}'
-                            .format(i, len(val_loader), loss=losses, 
-                            out=output, tar=score))
+            pb.show(i, '[{0:5d}/{1:5d}]\t'
+                    'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                    'Output {out:.4f}\t'
+                    'Target {tar:.4f}\t'
+                    .format(i, len_val, loss=losses, 
+                    out=output, tar=score))
+
 
     return float(1.0-srocc.compute())  # losses.avg
     
 
-def train(train_loader, model, criterion, optimizer, epoch, print_freq=256):
+def train(train_loader, model, criterion, optimizer, epoch):
     losses = AverageMeter()
+    len_train = len(train_loader)
+    pb = ProgressBar(len_train-1)
+
+    print("Training")
 
     # Switch to train mode
     model.train()
@@ -86,11 +89,48 @@ def train(train_loader, model, criterion, optimizer, epoch, print_freq=256):
         loss.backward()
         optimizer.step()
 
-        if i % print_freq == 0:
-            logger.info('Epoch: [{0}][{1}/{2}]\t'
-                        'Loss {loss.val:.4f} ({loss.avg:.4f})\t'.format(
-                epoch, i, len(train_loader), loss=losses))
+        pb.show(i, '[{0:5d}/{1:5d}]\t'
+                'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                .format(i, len_train, loss=losses))
                 
+def test(test_data_loader, model):
+    scores = []
+    srocc = SROCC()
+    plcc = PLCC()
+    rmse = RMSE()
+    len_test = len(test_data_loader)
+    pb = ProgressBar(len_test-1, show_step=True)
+
+    print("Testing")
+
+    model.eval()
+    with torch.no_grad():
+        for i, ((img, ref), score) in enumerate(test_data_loader):
+            img, ref = img.cuda(), ref.cuda()
+            output = model(img, ref).cpu().data.numpy()
+            score = score.data.numpy()
+
+            srocc.update(score, output)
+            plcc.update(score, output)
+            rmse.update(score, output)
+
+            pb.show(i, 'Test: [{0:5d}/{1:5d}]\t'
+                    'Score: {2:.4f}\t'
+                    'Label: {3:.4f}'
+                    .format(i, len_test, float(output), float(score)))
+
+            scores.append(output)
+    
+    # Write scores to file
+    with open('../test/scores.txt', 'w') as f:
+        stat = list(map(lambda s: f.write(str(s)+'\n'), scores))
+
+    print('\n\nSROCC: {0:.4f}\n'
+            'PLCC: {1:.4f}\n'
+            'RMSE: {2:.4f}'
+            .format(srocc.compute(), plcc.compute(), rmse.compute())
+    )
+
 
 def train_iqa(args):
     batch_size = args.batch_size
@@ -151,7 +191,7 @@ def train_iqa(args):
 
     for epoch in range(start_epoch, args.epochs):
         lr = adjust_learning_rate(args, optimizer, epoch)
-        logger.info('Epoch: [{0}]\tlr {1:.06f}'.format(epoch, lr))
+        print('\nEpoch: [{0}]\tlr {1:.06f}'.format(epoch, lr))
         # Train for one epoch
         train(train_loader, model.cuda(), criterion, optimizer, 
             epoch)
@@ -162,7 +202,7 @@ def train_iqa(args):
             
             is_best = loss < min_loss
             min_loss = min(loss, min_loss)
-            logger.info('Current: {:.6f}\tBest: {:.6f}\t'.format(loss, min_loss))
+            print('Current: {:.6f}\tBest: {:.6f}\t'.format(loss, min_loss))
             checkpoint_path = '../models/checkpoint_latest.pkl'
             save_checkpoint({
                 'epoch': epoch + 1,
@@ -174,59 +214,6 @@ def train_iqa(args):
                 history_path = '../models/checkpoint_{:03d}.pkl'.format(epoch+1)
                 shutil.copyfile(checkpoint_path, history_path)
             
-
-def adjust_learning_rate(args, optimizer, epoch):
-    """
-    Sets the learning rate
-    """
-    if args.lr_mode == 'step':
-        lr = args.lr * (0.5 ** (epoch // args.step))
-    elif args.lr_mode == 'poly':
-        lr = args.lr * (1 - epoch / args.epochs) ** 1.1
-    elif args.lr_mode == 'const':
-        lr = args.lr
-    else:
-        raise ValueError('Unknown lr mode {}'.format(args.lr_mode))
-
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
-    return lr
-
-
-def test(test_data_loader, model):
-    scores = []
-    srocc = SROCC()
-    plcc = PLCC()
-    rmse = RMSE()
-
-    model.eval()
-    with torch.no_grad():
-        for iter, ((img, ref), score) in enumerate(test_data_loader):
-            img, ref = img.cuda(), ref.cuda()
-            output = model(img, ref).cpu().data.numpy()
-            score = score.data.numpy()
-
-            srocc.update(score, output)
-            plcc.update(score, output)
-            rmse.update(score, output)
-
-            logger.info('Eval: [{0}/{1}]\t'
-                        'Score: {2:.4f}\t'
-                        'Label: {3:.4f}\t'
-                        .format(iter, len(test_data_loader), float(output), float(score)))
-
-            scores.append(output)
-    
-    # Write scores to file
-    with open('../test/scores.txt', 'w') as f:
-        stat = list(map(lambda s: f.write(str(s)+'\n'), scores))
-
-    logger.info('\n\nSROCC: {0:.4f}\n'
-                'PLCC: {1:.4f}\n'
-                'RMSE: {2:.4f}'
-                .format(srocc.compute(), plcc.compute(), rmse.compute())
-    )
-
 
 def test_iqa(args):
     batch_size = 1
@@ -255,15 +242,38 @@ def test_iqa(args):
     # Resume from a checkpoint
     if resume:
         if os.path.isfile(resume):
-            logger.info("=> loading checkpoint '{}'".format(resume))
+            print("=> loading checkpoint '{}'".format(resume))
             checkpoint = torch.load(resume)
             model.load_state_dict(checkpoint['state_dict'])
-            logger.info("=> loaded checkpoint '{}' (epoch {})"
+            print("=> loaded checkpoint '{}' (epoch {})"
                   .format(resume, checkpoint['epoch']))
         else:
-            logger.info("=> no checkpoint found at '{}'".format(resume))
+            print("=> no checkpoint found at '{}'".format(resume))
 
     test(test_loader, model.cuda())
+
+
+def adjust_learning_rate(args, optimizer, epoch):
+    """
+    Sets the learning rate
+    """
+    if args.lr_mode == 'step':
+        lr = args.lr * (0.5 ** (epoch // args.step))
+    elif args.lr_mode == 'poly':
+        lr = args.lr * (1 - epoch / args.epochs) ** 1.1
+    elif args.lr_mode == 'const':
+        lr = args.lr
+    else:
+        raise ValueError('Unknown lr mode {}'.format(args.lr_mode))
+
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
+    return lr
+
+def save_checkpoint(state, is_best, filename='checkpoint.pkl'):
+    torch.save(state, filename)
+    if is_best:
+        shutil.copyfile(filename, '../models/model_best.pkl')
 
 
 def parse_args():
@@ -297,8 +307,6 @@ def parse_args():
                         help='evaluate model on validation set')
 
     args = parser.parse_args()
-
-    print(args)
 
     return args
 
