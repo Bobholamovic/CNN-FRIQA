@@ -53,7 +53,7 @@ class IQADataset(torch.utils.data.Dataset):
             (img_ptchs, ref_ptchs), score = self._cache(index).data
         else:
             if self.phase == 'train':
-                # img, ref = self.tfs.horizontal_flip(img, ref)
+                img, ref = self.tfs.horizontal_flip(img, ref)
                 img_ptchs, ref_ptchs = self._to_patch_tensors(img, ref)
                 score = self.score_list[index]
             elif self.phase == 'val':
@@ -129,6 +129,7 @@ class Transforms:
         the decorator. tf_func applies transformation, which is all it does. 
     6. Performance has not been optimized at all
     7. Doc it
+    8. Supports only numpy arrays
     """
     def __init__(self):
         super(Transforms, self).__init__()
@@ -136,35 +137,40 @@ class Transforms:
     def _pair_deco(tf_func):
         def transform(self, img, ref=None, *args, **kwargs):
             """ image shape (w, h, c) """
-            ret = tf_func(self, img, *args, **kwargs)
-            img_tf = ret[0] if isinstance(ret, tuple) else ret
+            if (ref is not None) and (not isinstance(ref, np.ndarray)):
+                args = (ref,)+args
+                ref = None
+            ret = tf_func(self, img, None, *args, **kwargs)
+            assert(len(ret) == 2)
             if ref is None:
-                return img_tf
+                return ret[0]
             else:
-                ## No check of key existance here
-                kwargs['params'] = ret[1:]  # Add returned parameters to dict
-                ref_tf = tf_func(self, ref, *args, **kwargs)
-                return img_tf, ref_tf
+                num_var = tf_func.__code__.co_argcount-3    # self, img, ref not counted
+                if (len(args)+len(kwargs)) == (num_var-1): 
+                    # The last parameter is special
+                    # Resend it if necessary
+                    var_name = tf_func.__code__.co_varnames[-1]
+                    kwargs[var_name] = ret[1]
+                tf_ref, _ = tf_func(self, ref, None, *args, **kwargs)
+                return ret[0], tf_ref
         return transform
 
-    def _horizontal_flip(self, img, params):
-        if params is None:
+    def _horizontal_flip(self, img, flip):
+        if flip is None:
             flip = (random.random() > 0.5)
-            return (img[...,::-1,:] if flip else img), (flip,)
-        return img[...,::-1,:] if params[0] else img
+        return (img[...,::-1,:] if flip else img), flip
 
-    def _to_tensor(self, img, params):
-        return torch.from_numpy((img.astype(np.float32)/255).swapaxes(-3,-2).swapaxes(-3,-1))
+    def _to_tensor(self, img):
+        return torch.from_numpy((img.astype(np.float32)/255).swapaxes(-3,-2).swapaxes(-3,-1)), ()
 
-    def _crop_square(self, img, crop_size, params):
-        if params is None:
+    def _crop_square(self, img, crop_size, pos):
+        if pos is None:
             h, w = img.shape[-3:-1]
             assert(crop_size <= h and crop_size <= w)
             ub = random.randint(0, h-crop_size)
             lb = random.randint(0, w-crop_size)
             pos = (ub, ub+crop_size, lb, lb+crop_size)
-            return img[...,pos[0]:pos[1],pos[-2]:pos[-1]], pos
-        return img[...,params[0]:params[1],params[-2]:params[-1]]
+        return img[...,pos[0]:pos[1],pos[-2]:pos[-1]], pos
 
     def _extract_patches(self, img, ptch_size):
         h, w = img.shape[-3:-1]
@@ -174,31 +180,30 @@ class Transforms:
         ptchs = np.concatenate(np.split(vptchs[...,:nw*ptch_size,:], nw, axis=-2))
         return ptchs, nh*nw
 
-    def _to_patches(self, img, ptch_size=32, n_ptchs=None, params=None):
+    def _to_patches(self, img, ptch_size, n_ptchs, idx):
         ptchs, n = self._extract_patches(img, ptch_size)
         if not n_ptchs:
             n_ptchs = n
         elif n_ptchs > n:
             n_ptchs = n  
-        if params is None:
+        if idx is None:
             idx = list(range(n))
             random.shuffle(idx)
             idx = idx[:n_ptchs]
-            return ptchs[idx], idx
-        return ptchs[params]
+        return ptchs[idx], idx
 
     @_pair_deco
-    def horizontal_flip(self, img, params=None):
-        return self._horizontal_flip(img, params=params)
+    def horizontal_flip(self, img, ref=None, flip=None):
+        return self._horizontal_flip(img, flip=flip)
 
     @_pair_deco
-    def to_tensor(self, img, params=None):
-        return self._to_tensor(img, params=params)
+    def to_tensor(self, img, ref=None):
+        return self._to_tensor(img)
 
     @_pair_deco
-    def crop_square(self, img, crop_size=64, params=None):
-        return self._crop_square(img, crop_size=crop_size, params=params)
+    def crop_square(self, img, ref=None, crop_size=64, pos=None):
+        return self._crop_square(img, crop_size=crop_size, pos=pos)
 
     @_pair_deco
-    def to_patches(self, img, ptch_size=32, n_ptchs=None, params=None):
-        return self._to_patches(img, ptch_size=ptch_size, n_ptchs=n_ptchs, params=params)
+    def to_patches(self, img, ref=None, ptch_size=32, n_ptchs=None, idx=None):
+        return self._to_patches(img, ptch_size=ptch_size, n_ptchs=n_ptchs, idx=idx)

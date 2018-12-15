@@ -66,8 +66,10 @@ class IQANet(nn.Module):
     Implements a siamese network at first and then there is regression
     ---------------------------------------------------- Nothing special
     """
-    def __init__(self):
+    def __init__(self, weighted=False):
         super(IQANet, self).__init__()
+
+        self.weighted = weighted
 
         # Feature extraction layers
         self.fl1 = DoubleConv(3, 32)
@@ -84,8 +86,9 @@ class IQANet(nn.Module):
         self.rl1 = nn.Linear(64, 32)
         self.rl2 = nn.Linear(32, 1)
 
-        self.wl1 = nn.Linear(64, 32)
-        self.wl2 = nn.Linear(32, 1)
+        if self.weighted:
+            self.wl1 = nn.Linear(64, 32)
+            self.wl2 = nn.Linear(32, 1)
 
         # Utilities?
         self.dropout = nn.Dropout(0.5)
@@ -127,16 +130,17 @@ class IQANet(nn.Module):
         y = self.rl1(flatten)
         y = self.rl2(y)
 
-        w = self.wl1(flatten)
-        w = self.wl2(w)
-        w = torch.nn.functional.relu(w) + 1e-8
-
-        # Calculate average score for each image
-        # score = torch.mean(y.view(n_imgs, n_ptchs_per_img), dim=1)
-        # Weighted average
-        y_by_img = y.view(n_imgs, n_ptchs_per_img)
-        w_by_img = w.view(n_imgs, n_ptchs_per_img)
-        score = torch.sum(y_by_img*w_by_img, dim=1) / torch.sum(w_by_img, dim=1)
+        if self.weighted:
+            w = self.wl1(flatten)
+            w = self.wl2(w)
+            w = torch.nn.functional.relu(w) + 1e-8
+            # Weighted average
+            y_by_img = y.view(n_imgs, n_ptchs_per_img)
+            w_by_img = w.view(n_imgs, n_ptchs_per_img)
+            score = torch.sum(y_by_img*w_by_img, dim=1) / torch.sum(w_by_img, dim=1)
+        else:
+            # Calculate average score for each image
+            score = torch.mean(y.view(n_imgs, n_ptchs_per_img), dim=1)
 
         return score.squeeze()
 

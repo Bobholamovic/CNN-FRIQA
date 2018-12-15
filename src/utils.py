@@ -178,13 +178,13 @@ class RMSE(Metric):
 
 def limited_instances(n):
     def decorator(cls):
-        _instances = {}
+        _instances = [None]*n
         _lock = Lock()
         def wrapper(idx, *args, **kwargs):
             nonlocal _instances
             with _lock:
                 if idx < n:
-                    if _instances.get(idx) is None: _instances[idx] = cls(*args, **kwargs)                   
+                    if _instances[idx] is None: _instances[idx] = cls(*args, **kwargs)   
                 else:
                     raise ValueError('index exceeds maximum number of instances')
                 return _instances[idx]

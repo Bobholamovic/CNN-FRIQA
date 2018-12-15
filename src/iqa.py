@@ -28,11 +28,11 @@ from utils import AverageMeter, SROCC, PLCC, RMSE
 from utils import SimpleProgressBar as ProgressBar
 
 
-def validate(val_loader, model, criterion):
+def validate(val_loader, model, criterion, show_step=False):
     losses = AverageMeter()
     srocc = SROCC()
     len_val = len(val_loader)
-    pb = ProgressBar(len_val-1)
+    pb = ProgressBar(len_val-1, show_step=show_step)
 
     print("Validation")
 
@@ -146,7 +146,7 @@ def train_iqa(args):
     for k, v in args.__dict__.items():
         print(k, ':', v)
 
-    model = IQANet()
+    model = IQANet(args.weighted)
     criterion = nn.L1Loss()
 
     # Data loaders
@@ -186,7 +186,7 @@ def train_iqa(args):
             print("=> no checkpoint found at '{}'".format(resume))
 
     if args.evaluate:
-        validate(val_loader, model.cuda(), criterion)
+        validate(val_loader, model.cuda(), criterion, show_step=True)
         return
 
     for epoch in range(start_epoch, args.epochs):
@@ -227,7 +227,7 @@ def test_iqa(args):
     for k, v in args.__dict__.items():
         print(k, ':', v)
 
-    model = IQANet()
+    model = IQANet(args.weighted)
 
     test_loader = torch.utils.data.DataLoader(
         IQADataset(data_dir, phase='test', list_dir=list_dir, 
@@ -305,6 +305,8 @@ def parse_args():
     parser.add_argument('--evaluate', dest='evaluate',
                         action='store_true',
                         help='evaluate model on validation set')
+    parser.add_argument('--weighted', dest='weighted', 
+                        action='store_true')
 
     args = parser.parse_args()
 
