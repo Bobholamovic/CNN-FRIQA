@@ -15,9 +15,10 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 
 """
-Torch version of SSIM (from Internet)
+Torch version of SSIM 
 -----------------------------------------
 
+From [Po-Hsun-Su/pytorch-ssim](https://github.com/Po-Hsun-Su/pytorch-ssim)
 Including functions:
     * gaussian
     * create_window
