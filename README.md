@@ -6,7 +6,7 @@ Convulutional Neural Network for Full-Reference color Image Quality Assessment
 ## Environment and Dependencies
 > Ubuntu 16.04 64-bit, Visual Studio Code, Python 3.5.2, Pytorch 0.4.0
 
-```requirements.txt``` is not included yet.   
+`requirements.txt` is not included yet.   
   
   
   
@@ -14,7 +14,7 @@ Convulutional Neural Network for Full-Reference color Image Quality Assessment
 
 ### Data Preparation
 
-The first thing to do that split the datasets and create several ```.txt``` files to separately include the data lists for the three phases, namely training, testing and validation. The ```.txt``` files should contain the absolute or relative paths of both the scores (subjective IQA scores like ```MOS``` or ```DMOS```), the reference images (labels), and the distorted images. For example, if you are using the ```TID2013``` database, there must be ```9``` ```txt```s. And each item in the list file should be put in a separate line. Hence, the content of ```train_images.txt``` may look like this
+The first thing to do that split the datasets and create several `.txt` files to separately include the data lists for the three phases, namely training, testing and validation. The `.txt` files should contain the absolute or relative paths of both the scores (subjective IQA scores like `MOS` or `DMOS`), the reference images (labels), and the distorted images. For example, if you are using the `TID2013` database, there must be *9* `txt`s. And each item in the list file should be put in a separate line. Hence, the content of `train_images.txt` may look like this
 
 > distorted_images/I01_01_1.bmp  
   distorted_images/i01_01_2.bmp  
@@ -25,7 +25,7 @@ The first thing to do that split the datasets and create several ```.txt``` file
   distorted_images/i01_02_2.bmp  
   ...
 
-And that in ```train_labels.txt```
+And that in `train_labels.txt`
 > reference_images/I01.BMP  
   reference_images/I01.BMP  
   reference_images/I01.BMP  
@@ -35,7 +35,7 @@ And that in ```train_labels.txt```
   reference_images/I01.BMP  
   ...
   
- In ```train_scores```
+ In `train_scores`
  > 5.51429  
   5.56757  
   4.94444  
@@ -46,7 +46,7 @@ And that in ```train_labels.txt```
   ...
   
   
-Note that the names of the data list files have to be specified as ```train_images.txt```, ```train_scores.txt```, ```train_labels.txt```, ```val_images.txt```, ```val_scores.txt```, ```val_labels.txt```, ```test_images.txt```, ```test_labels.txt```, and ```test_scores.txt```. 
+Note that the names of the data list files have to be specified as `train_images.txt`, `train_scores.txt`, `train_labels.txt`, `val_images.txt`, `val_scores.txt`, `val_labels.txt`, `test_images.txt`, `test_labels.txt`, and `test_scores.txt`. 
   
 
 ### Running Code
@@ -56,7 +56,7 @@ For training, try
 python iqa.py train --resume pretrianed_model_path
 ```
 
-If ```pretrained_model_path``` is not specified, the model will learn from scratch. 
+If `pretrained_model_path` is not specified, the model will learn from scratch. 
   
 For evaluation, try
 ```bash
@@ -77,14 +77,14 @@ Some pertrained models and the script to make filename lists are to be uploaded 
   
   
 ## Experiment and Performance
-Roughly, the ```SROCC``` value reaches ```0.95``` or higher under the best condition.
+Roughly, the `SROCC` value reaches `0.95` or higher under the best condition.
 
 The experiment results are to be added here.  
   
   
   
 ## Acknowledgement
-+ Torch version of ```SSIM``` from [Po-Hsun-Su/pytorch-ssim](https://github.com/Po-Hsun-Su/pytorch-ssim)
++ Torch version of `SSIM` from [Po-Hsun-Su/pytorch-ssim](https://github.com/Po-Hsun-Su/pytorch-ssim)
 + Part of the code layout from [fyu/drn](https://github.com/fyu/drn)
 
 With best thanks!  
