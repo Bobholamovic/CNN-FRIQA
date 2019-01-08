@@ -11,6 +11,9 @@ Convulutional Neural Network for Full-Reference color Image Quality Assessment
   
   
 ## Usage
+
+### Data Preparation
+
 The first thing to do that split the datasets and create several ```.txt``` files to separately include the data lists for the three phases, namely training, testing and validation. The ```.txt``` files should contain the absolute or relative paths of both the scores (subjective IQA scores like ```MOS``` or ```DMOS```), the reference images (labels), and the distorted images. For example, if you are using the ```TID2013``` database, there must be ```9``` ```txt```s. And each item in the list file should be put in a separate line. Hence, the content of ```train_images.txt``` may look like this
 
 > distorted_images/I01_01_1.bmp  
@@ -45,25 +48,25 @@ And that in ```train_labels.txt```
   
 Note that the names of the data list files have to be specified as ```train_images.txt```, ```train_scores.txt```, ```train_labels.txt```, ```val_images.txt```, ```val_scores.txt```, ```val_labels.txt```, ```test_images.txt```, ```test_labels.txt```, and ```test_scores.txt```. 
   
-  
+
+### Running Code
+
 For training, try
 ```bash
 python iqa.py train --resume pretrianed_model_path
 ```
+
 If ```pretrained_model_path``` is not specified, the model will learn from scratch. 
-  
   
 For evaluation, try
 ```bash
 python iqa.py train --evaluate --resume pretrained_model_path
 ```
   
-  
 For testing, try
 ```bash
 python iqa.py test --resume pretrained_model_path
 ```
-  
   
 The code of testing the model on a single image is desired, yet to be provided. 
 
