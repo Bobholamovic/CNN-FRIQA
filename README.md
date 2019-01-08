@@ -4,7 +4,7 @@ Convulutional Neural Network for Full-Reference color Image Quality Assessment
   
   
 ## Environment and Dependencies
-> Ubuntu 16.04 64-bit, Visual Studio Code, Python 3.5.2, Pytorch 0.1.0
+> Ubuntu 16.04 64-bit, Visual Studio Code, Python 3.5.2, Pytorch 0.4.0
 
 ```requirements.txt``` is not included yet.   
   
