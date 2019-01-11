@@ -84,6 +84,7 @@ The experiment results are to be added here.
   
   
 ## Acknowledgement
++ The design of the model is inspired by [Deep Neural Networks for No-Reference and Full-Reference Image Quality Assessment](https://arxiv.org/abs/1612.01697)
 + Torch version of `SSIM` from [Po-Hsun-Su/pytorch-ssim](https://github.com/Po-Hsun-Su/pytorch-ssim)
 + Part of the code layout from [fyu/drn](https://github.com/fyu/drn)
 
