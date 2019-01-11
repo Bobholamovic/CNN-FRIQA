@@ -10,9 +10,8 @@ from skimage import io
 from os.path import join, exists
 from utils import limited_instances
 
-INVALID_VALUE = -1.0
-
 class IQADataset(torch.utils.data.Dataset):
+    INVALID_VALUE = -1.0
     def __init__(self, data_dir, phase, ptch_size=32, n_ptchs=16, sample_once=False, \
                     subset='', list_dir=None):
         super(IQADataset, self).__init__()
@@ -27,7 +26,7 @@ class IQADataset(torch.utils.data.Dataset):
         self.ref_list = None
         self.score_list = None
         self.sample_once = sample_once
-        self._from_cache = False
+        self._from_pool = False
 
         self._read_lists()
 
@@ -38,19 +37,17 @@ class IQADataset(torch.utils.data.Dataset):
                 def store(self, data):
                     self.data = data
 
-            self._cache = IncrementCache
-            self._store_to_cache()
-            self._from_cache = True
+            self._pool = IncrementCache
+            self._to_pool()
+            self._from_pool = True
 
     def __getitem__(self, index):
-        global INVALID_VALUE
-        
-        img = io.imread(join(self.data_dir, self.img_list[index]))
-        ref = io.imread(join(self.data_dir, self.ref_list[index]))
-        score = INVALID_VALUE
+        img = self._loader(self.img_list[index])
+        ref = self._loader(self.ref_list[index])
+        score = self.INVALID_VALUE
 
-        if self._from_cache:
-            (img_ptchs, ref_ptchs), score = self._cache(index).data
+        if self._from_pool:
+            (img_ptchs, ref_ptchs), score = self._pool(index).data
         else:
             if self.phase == 'train':
                 img, ref = self.tfs.horizontal_flip(img, ref)
@@ -75,14 +72,17 @@ class IQADataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.img_list)
 
+    def _loader(self, iname):
+        return io.imread(join(self.data_dir, iname))
+
     def _to_patch_tensors(self, img, ref):
             img_ptchs, ref_ptchs = self.tfs.to_patches(img, ref, ptch_size=self.ptch_size, n_ptchs=self.n_ptchs)
             img_ptchs, ref_ptchs = self.tfs.to_tensor(img_ptchs, ref_ptchs)
             return img_ptchs, ref_ptchs
 
-    def _store_to_cache(self):
+    def _to_pool(self):
         for index in range(self.__len__()):
-            self._cache(index).store(self.__getitem__(index))
+            self._pool(index).store(self.__getitem__(index))
 
     def _read_lists(self):
         img_path = join(self.list_dir, self.subset + '_images.txt')
