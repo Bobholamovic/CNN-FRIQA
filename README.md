@@ -13,50 +13,51 @@ Convulutional Neural Network for Full-Reference color Image Quality Assessment
 ## Usage
 
 ### Data Preparation
+Now in the new version `.json` files are utilized for the data lists. The relative paths of the distorted images and the reference images to `data-dir` and the quality scores (ground-truth values) are stored in three arrays of a `json` object, with the fields specified as `img`, `ref`, and `score`, respectively. For example, `train_data.json` may look like this:
 
-The first thing to do that split the datasets and create several `.txt` files to separately include the data lists for the three phases, namely training, testing and validation. The `.txt` files should contain the absolute or relative paths of both the scores (subjective IQA scores like `MOS` or `DMOS`), the reference images (labels), and the distorted images. For example, if you are using the `TID2013` database, there must be *9* `txt`s. And each item in the list file should be put in a separate line. Hence, the content of `train_images.txt` may look like this
+```
+{
+  "img":
+    [
+      "distorted/img11_2_4.bmp", 
+      "distorted/img6_3_3.bmp"
+    ], 
+  "ref":
+    [
+      "images/img11.bmp", 
+      "distorted/img6.bmp"
+    ], 
+  "score":
+    [
+      0.5503, 
+      0.4312
+    ]
+}
+```
+(this has been prettified as everthing actually on one line)
 
-> distorted_images/I01_01_1.bmp  
-  distorted_images/i01_01_2.bmp  
-  distorted_images/i01_01_3.bmp  
-  distorted_images/i01_01_4.bmp  
-  distorted_images/i01_01_5.bmp  
-  distorted_images/i01_02_1.bmp  
-  distorted_images/i01_02_2.bmp  
-  ...
+Also, there are `val_data.json` for validation subset and `test_data.json` for test subset. The lists are expected to be found at `list-dir`, which will be set to `data-dir` if not specified. 
 
-And that in `train_labels.txt`
-> reference_images/I01.BMP  
-  reference_images/I01.BMP  
-  reference_images/I01.BMP  
-  reference_images/I01.BMP  
-  reference_images/I01.BMP  
-  reference_images/I01.BMP  
-  reference_images/I01.BMP  
-  ...
-  
- In `train_scores`
- > 5.51429  
-  5.56757  
-  4.94444  
-  4.37838  
-  3.86486  
-  6.02857  
-  6.10811  
-  ...
-  
-  
-Note that the names of the data list files have to be specified as `train_images.txt`, `train_scores.txt`, `train_labels.txt`, `val_images.txt`, `val_scores.txt`, `val_labels.txt`, `test_images.txt`, `test_labels.txt`, and `test_scores.txt`. 
-  
+The scripts for data preparation on `Waterloo` and `TID2013` are provided. 
 
 ### Running Code
+Start from the root directory of this project, 
+```bash
+cd src/
+```
 
 For training, try
 ```bash
-python iqa.py train --resume pretrianed_model_path
+python iqa.py train --resume pretrianed_model_path --data-dir DIR_OF_DATASET
 ```
 
-If `pretrained_model_path` is not specified, the model will learn from scratch. 
+If `pretrained_model_path` is not correctly specified, the model will learn from scratch. 
+
+Use
+```bash
+python iqa.py train --resume pretrianed_model_path | tee train.log
+```
+to dump logs. 
   
 For evaluation, try
 ```bash
@@ -70,9 +71,9 @@ python iqa.py test --resume pretrained_model_path
   
 The code of testing the model on a single image is desired, yet to be provided. 
 
-As the patches are randomly extracted, there should be a random noise in the output of the model, which explains the slight difference of performance upon different attempts. 
+As the patches are randomly extracted, there should be a random noise in the output of the model, which explains the slight difference of the performances upon different attempts. 
 
-Some pertrained models and the script to make filename lists are to be uploaded later.   
+Some pertrained models ~~and the script to make filename lists~~ are to be uploaded later.   
   
   
   
@@ -85,10 +86,9 @@ The experiment results are to be added here.
   
 ## Acknowledgement
 + The design of the model is inspired by [Deep Neural Networks for No-Reference and Full-Reference Image Quality Assessment](https://arxiv.org/abs/1612.01697)
-+ Torch version of `SSIM` from [Po-Hsun-Su/pytorch-ssim](https://github.com/Po-Hsun-Su/pytorch-ssim)
++ Torch version of `MS-SSIM` from [lizhengwei1992/MS_SSIM_pytorch](https://github.com/lizhengwei1992/MS_SSIM_pytorch.git)
 + Part of the code layout from [fyu/drn](https://github.com/fyu/drn)
 
 With best thanks!  
-  
-  
+
   
