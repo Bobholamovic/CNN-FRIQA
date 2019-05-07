@@ -5,25 +5,16 @@ Main Script
 
 import sys
 import os
-from os.path import exists, join, split
-import threading
-import time
-import random
 
-import numpy as np
 import shutil
 import argparse
-import json
-from PIL import Image
 
 import torch
 import torch.backends.cudnn as cudnn
-import torch.optim as optim
-import torch.nn.functional as F 
 from torch import nn
 
 from model import IQANet
-from dataset import IQADataset
+from dataset import TID2013Dataset as Dataset
 from utils import AverageMeter, SROCC, PLCC, RMSE
 from utils import SimpleProgressBar as ProgressBar
 
@@ -32,7 +23,7 @@ def validate(val_loader, model, criterion, show_step=False):
     losses = AverageMeter()
     srocc = SROCC()
     len_val = len(val_loader)
-    pb = ProgressBar(len_val-1, show_step=show_step)
+    pb = ProgressBar(len_val, show_step=show_step)
 
     print("Validation")
 
@@ -47,16 +38,16 @@ def validate(val_loader, model, criterion, show_step=False):
             output = model(img, ref)
             
             loss = criterion(output, score)
-            losses.update(loss.data, img.shape[0])
+            losses.update(loss, img.shape[0])
 
-            output = output.cpu().data
-            score = score.cpu().data
+            output = output.cpu()
+            score = score.cpu()
             srocc.update(score.numpy(), output.numpy())
 
-            pb.show(i, '[{0:5d}/{1:5d}]\t'
-                    'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                    'Output {out:.4f}\t'
-                    'Target {tar:.4f}\t'
+            pb.show(i, "[{0:d}/{1:d}]\t"
+                    "Loss {loss.val:.4f} ({loss.avg:.4f})\t"
+                    "Output {out:.4f}\t"
+                    "Target {tar:.4f}\t"
                     .format(i, len_val, loss=losses, 
                     out=output, tar=score))
 
@@ -67,7 +58,7 @@ def validate(val_loader, model, criterion, show_step=False):
 def train(train_loader, model, criterion, optimizer, epoch):
     losses = AverageMeter()
     len_train = len(train_loader)
-    pb = ProgressBar(len_train-1)
+    pb = ProgressBar(len_train)
 
     print("Training")
 
@@ -75,7 +66,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
     model.train()
     criterion.cuda()
     for i, ((img,ref), score) in enumerate(train_loader):
-        img, ref, score = img.cuda(), ref.cuda(), score.squeeze().cuda()
+        img, ref, score = img.cuda(), ref.cuda(), score.cuda()
 
         # Compute output
         output = model(img, ref)
@@ -89,8 +80,8 @@ def train(train_loader, model, criterion, optimizer, epoch):
         loss.backward()
         optimizer.step()
 
-        pb.show(i, '[{0:5d}/{1:5d}]\t'
-                'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+        pb.show(i, "[{0:d}/{1:d}]\t"
+                "Loss {loss.val:.4f} ({loss.avg:.4f})\t"
                 .format(i, len_train, loss=losses))
                 
 def test(test_data_loader, model):
@@ -99,7 +90,7 @@ def test(test_data_loader, model):
     plcc = PLCC()
     rmse = RMSE()
     len_test = len(test_data_loader)
-    pb = ProgressBar(len_test-1, show_step=True)
+    pb = ProgressBar(len_test, show_step=True)
 
     print("Testing")
 
@@ -114,9 +105,9 @@ def test(test_data_loader, model):
             plcc.update(score, output)
             rmse.update(score, output)
 
-            pb.show(i, 'Test: [{0:5d}/{1:5d}]\t'
-                    'Score: {2:.4f}\t'
-                    'Label: {3:.4f}'
+            pb.show(i, "Test: [{0:5d}/{1:5d}]\t"
+                    "Score: {2:.4f}\t"
+                    "Label: {3:.4f}"
                     .format(i, len_test, float(output), float(score)))
 
             scores.append(output)
@@ -125,9 +116,9 @@ def test(test_data_loader, model):
     with open('../test/scores.txt', 'w') as f:
         stat = list(map(lambda s: f.write(str(s)+'\n'), scores))
 
-    print('\n\nSROCC: {0:.4f}\n'
-            'PLCC: {1:.4f}\n'
-            'RMSE: {2:.4f}'
+    print("\n\nSROCC: {0:.4f}\n"
+            "PLCC: {1:.4f}\n"
+            "RMSE: {2:.4f}"
             .format(srocc.compute(), plcc.compute(), rmse.compute())
     )
 
@@ -151,13 +142,13 @@ def train_iqa(args):
 
     # Data loaders
     train_loader = torch.utils.data.DataLoader(
-        IQADataset(data_dir, 'train', list_dir=list_dir, 
+        Dataset(data_dir, 'train', list_dir=list_dir, 
         ptch_size=patch_size, n_ptchs=n_ptchs),
         batch_size=batch_size, shuffle=True, num_workers=num_workers,
         pin_memory=True, drop_last=True
     )
     val_loader = torch.utils.data.DataLoader(
-        IQADataset(data_dir, 'val', list_dir=list_dir, 
+        Dataset(data_dir, 'val', list_dir=list_dir, 
         ptch_size=patch_size, n_ptchs=n_ptchs, sample_once=True),
         batch_size=1, shuffle=False, num_workers=0,
         pin_memory=True
@@ -191,18 +182,17 @@ def train_iqa(args):
 
     for epoch in range(start_epoch, args.epochs):
         lr = adjust_learning_rate(args, optimizer, epoch)
-        print('\nEpoch: [{0}]\tlr {1:.06f}'.format(epoch, lr))
+        print("\nEpoch: [{0}]\tlr {1:.06f}".format(epoch, lr))
         # Train for one epoch
-        train(train_loader, model.cuda(), criterion, optimizer, 
-            epoch)
+        train(train_loader, model.cuda(), criterion, optimizer, epoch)
 
-        if (epoch+1) % 1 == 0:     
+        if epoch % 1 == 0:    
             # Evaluate on validation set
             loss = validate(val_loader, model.cuda(), criterion)
             
             is_best = loss < min_loss
             min_loss = min(loss, min_loss)
-            print('Current: {:.6f}\tBest: {:.6f}\t'.format(loss, min_loss))
+            print("Current: {:.6f}\tBest: {:.6f}\t".format(loss, min_loss))
             checkpoint_path = '../models/checkpoint_latest.pkl'
             save_checkpoint({
                 'epoch': epoch + 1,
@@ -210,7 +200,7 @@ def train_iqa(args):
                 'min_loss': min_loss,
             }, is_best, filename=checkpoint_path)
 
-            if (epoch+1) % 1 == 0:
+            if epoch % args.dump_per == 0:
                 history_path = '../models/checkpoint_{:03d}.pkl'.format(epoch+1)
                 shutil.copyfile(checkpoint_path, history_path)
             
@@ -230,7 +220,7 @@ def test_iqa(args):
     model = IQANet(args.weighted)
 
     test_loader = torch.utils.data.DataLoader(
-        IQADataset(data_dir, phase='test', list_dir=list_dir, 
+        Dataset(data_dir, phase='test', list_dir=list_dir, 
         ptch_size=args.patch_size, n_ptchs=args.n_ptchs_per_img,
         subset=subset), 
         batch_size=batch_size, shuffle=False,
@@ -280,8 +270,8 @@ def parse_args():
     # Training settings
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('cmd', choices=['train', 'test'])
-    parser.add_argument('-d', '--data-dir', default='/media/yang/0001DB8C00052535/mengxiting/database/TID2013/')
-    parser.add_argument('-l', '--list-dir', default=None,
+    parser.add_argument('-d', '--data-dir', default='/media/gdf/0001DB8C00052535/mengxiting/database/TID2013/')
+    parser.add_argument('-l', '--list-dir', default='',
                         help='List dir to look for train_images.txt etc. '
                              'It is the same with --data-dir if not set.')
     parser.add_argument('-n', '--n-ptchs-per-img', type=int, default=32, metavar='N', 
@@ -307,6 +297,8 @@ def parse_args():
                         help='evaluate model on validation set')
     parser.add_argument('--weighted', dest='weighted', 
                         action='store_true')
+    parser.add_argument('--dump_per', type=int, default=50, 
+                        help='the number of epochs to make a checkpoint')
 
     args = parser.parse_args()
 

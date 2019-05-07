@@ -2,91 +2,12 @@
 Some Useful Functions and Classes
 """
 
-import math
 from abc import ABCMeta, abstractmethod
 from threading import Lock
+from sys import stdout
 
-import shutil
 import numpy as np
 from scipy import stats
-
-import torch
-from torch.autograd import Variable
-import torch.nn.functional as F
-
-"""
-Torch version of SSIM 
------------------------------------------
-
-From [Po-Hsun-Su/pytorch-ssim](https://github.com/Po-Hsun-Su/pytorch-ssim)
-Including functions:
-    * gaussian
-    * create_window
-    * _ssim_map
-    * _ssim
-    * ssim
-    * ssim_map
-
-"""
-
-def gaussian(window_size, sigma):
-    gauss = torch.Tensor([math.exp(-(x - window_size // 2) * 2 / float(2 * sigma ** 2)) for x in range(window_size)])
-    return gauss / gauss.sum()
-
-def create_window(window_size, channel, sigma=1.5):
-    _1D_window = gaussian(window_size, sigma).unsqueeze(1)
-    _2D_window = _1D_window.mm(_1D_window.t()).float().unsqueeze(0).unsqueeze(0)
-    window = Variable(_2D_window.expand(channel, 1, window_size, window_size).contiguous())
-    return window
-
-def _ssim_map(img1, img2, window, window_size, channel):
-    mu1 = F.conv2d(img1, window, padding=window_size // 2, groups=channel)
-    mu2 = F.conv2d(img2, window, padding=window_size // 2, groups=channel)
-
-    mu1_sq = mu1.pow(2)
-    mu2_sq = mu2.pow(2)
-    mu1_mu2 = mu1 * mu2
-
-    sigma1_sq = F.conv2d(img1 * img1, window, padding=window_size // 2, groups=channel) - mu1_sq
-    sigma2_sq = F.conv2d(img2 * img2, window, padding=window_size // 2, groups=channel) - mu2_sq
-    sigma12 = F.conv2d(img1 * img2, window, padding=window_size // 2, groups=channel) - mu1_mu2
-
-    C1 = 0.01 ** 2
-    C2 = 0.03 ** 2
-
-    ssim_map = ((2 * mu1_mu2 + C1) * (2 * sigma12 + C2)) / ((mu1_sq + mu2_sq + C1) * (sigma1_sq + sigma2_sq + C2))
-
-    return ssim_map
-
-def _ssim(img1, img2, window, window_size, channel, size_average=True):
-    ssim_map = _ssim_map(img1, img2, window, window_size, channel)
-
-    if size_average:
-        return ssim_map.mean()
-    else:
-        return ssim_map.mean(1).mean(1).mean(1)
-
-
-def ssim(img1, img2, window_size=11, size_average=True):
-    (_, channel, _, _) = img1.size()
-    window = create_window(window_size, channel)
-
-    if img1.is_cuda:
-        window = window.cuda(img1.get_device())
-    window = window.type_as(img1)
-
-    return _ssim(img1, img2, window, window_size, channel, size_average)
-
-def ssim_map(img1, img2, window_size=11):
-    (_, channel, _, _) = img1.size()
-    window = create_window(window_size, channel)
-
-    if img1.is_cuda:
-        window = window.cuda(img1.get_device())
-    window = window.type_as(img1)
-
-
-    return _ssim_map(img1, img2, window, window_size, channel)
 
 
 class AverageMeter:
@@ -187,7 +108,7 @@ def limited_instances(n):
                 if idx < n:
                     if _instances[idx] is None: _instances[idx] = cls(*args, **kwargs)   
                 else:
-                    raise ValueError('index exceeds maximum number of instances')
+                    raise KeyError('index exceeds maximum number of instances')
                 return _instances[idx]
         return wrapper
     return decorator
@@ -198,18 +119,38 @@ class SimpleProgressBar:
         self.len = total_len
         self.pat = pat
         self.bar_len = 50
-        self.show_step=show_step
+        self.show_step = show_step
         self.print_freq = print_freq
+        self.out_stream = stdout
+        self.__len_last_str = 0
 
-    def show(self, cur, disp_str):
-        cur_bar_len = int((cur/self.len)*self.bar_len)
+    def show(self, cur, desc):
+        cur_bar_len = int(((cur+1)/self.len)*self.bar_len)
         cur_bar = '|'+self.pat*cur_bar_len+' '*(self.bar_len-cur_bar_len)+'|'
         
-        if self.show_step:
-            if (cur % self.print_freq) == 0: print("{0}\t\t{1}".format(disp_str, cur_bar), end='\n')
-            return 
-        if cur < self.len:
-            print("{0}\t\t{1}".format(disp_str, cur_bar), end='\r')
-        else:
-            print("{0}\t\t{1}".format(disp_str, cur_bar), end='\n')
+        disp_str = "{0}\t\t{1}".format(desc, cur_bar)
 
+        # Handle tabs and misalignment
+        len_with_tabs = self.len_with_tabs(disp_str)
+        # Clear
+        self.write(' '*self.__len_last_str)
+        self.__len_last_str = len_with_tabs
+
+        if self.show_step and (cur % self.print_freq) == 0:
+            self.write(disp_str, new_line=True)
+            return
+
+        if cur_bar_len < self.bar_len:
+            self.write(disp_str)
+        else:
+            self.write(disp_str, new_line=True)
+
+        self.out_stream.flush()
+
+    @staticmethod
+    def len_with_tabs(s):
+        return len(s.expandtabs())
+
+    def write(self, content, new_line=False):
+        end = '\n' if new_line else '\r'
+        self.out_stream.write(content+end)

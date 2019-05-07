@@ -6,29 +6,30 @@ Dataset and Transforms
 import torch.utils.data
 import numpy as np
 import random
+import json
 from skimage import io
 from os.path import join, exists
-from utils import limited_instances
+from utils import limited_instances, SimpleProgressBar
 
 class IQADataset(torch.utils.data.Dataset):
-    INVALID_VALUE = -1.0
     def __init__(self, data_dir, phase, ptch_size=32, n_ptchs=16, sample_once=False, \
-                    subset='', list_dir=None):
+                    subset='', list_dir=''):
         super(IQADataset, self).__init__()
 
-        self.list_dir = data_dir if list_dir is None else list_dir
+        self.list_dir = data_dir if not list_dir else list_dir
         self.data_dir = data_dir
         self.phase = phase
-        self.subset = phase if not len(subset) else subset
+        self.subset = phase if not subset.split() else subset
         self.ptch_size = ptch_size
         self.n_ptchs = n_ptchs
-        self.img_list = None
-        self.ref_list = None
-        self.score_list = None
+        self.img_list = []
+        self.ref_list = []
+        self.score_list = []
         self.sample_once = sample_once
         self._from_pool = False
 
         self._read_lists()
+        self._aug_lists()
 
         self.tfs = Transforms()
         if sample_once:
@@ -44,36 +45,28 @@ class IQADataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         img = self._loader(self.img_list[index])
         ref = self._loader(self.ref_list[index])
-        score = self.INVALID_VALUE
+        score = self.score_list[index]
 
         if self._from_pool:
-            (img_ptchs, ref_ptchs), score = self._pool(index).data
+            (img_ptchs, ref_ptchs) = self._pool(index).data
         else:
             if self.phase == 'train':
                 img, ref = self.tfs.horizontal_flip(img, ref)
                 img_ptchs, ref_ptchs = self._to_patch_tensors(img, ref)
-                score = self.score_list[index]
             elif self.phase == 'val':
                 img_ptchs, ref_ptchs = self._to_patch_tensors(img, ref)
-                score = self.score_list[index]
             elif self.phase == 'test':
                 img_ptchs, ref_ptchs = self._to_patch_tensors(img, ref)
-                if self.score_list is not None:
-                    score = self.score_list[index] 
             else:
                 pass
 
-            # For TID2013
-            score = (9.0 - score) / 9.0 * 100.0
-
-        # print(img_ptchs.shape, ref_ptchs.shape, score)
-        return (img_ptchs, ref_ptchs), torch.FloatTensor([score,])
+        return (img_ptchs, ref_ptchs), torch.tensor(score).float()
 
     def __len__(self):
         return len(self.img_list)
 
-    def _loader(self, iname):
-        return io.imread(join(self.data_dir, iname))
+    def _loader(self, name):
+        return io.imread(join(self.data_dir, name))
 
     def _to_patch_tensors(self, img, ref):
             img_ptchs, ref_ptchs = self.tfs.to_patches(img, ref, ptch_size=self.ptch_size, n_ptchs=self.n_ptchs)
@@ -81,33 +74,50 @@ class IQADataset(torch.utils.data.Dataset):
             return img_ptchs, ref_ptchs
 
     def _to_pool(self):
-        for index in range(self.__len__()):
-            self._pool(index).store(self.__getitem__(index))
+        len_data = self.__len__()
+        pb = SimpleProgressBar(len_data)
+        print("\ninitializing data pool...")
+        for index in range(len_data):
+            self._pool(index).store(self.__getitem__(index)[0])
+            pb.show(index, "[{:d}]/[{:d}] ".format(index+1, len_data))
+
+    def _aug_lists(self):
+        if self.phase == 'test':
+            return
+        # Make samples from the reference images
+        # This appears CRITICAL for the training effect!
+        len_aug = len(self.ref_list) if self.phase == 'train' else 10
+        aug_list = self.ref_list*(len_aug//len(self.ref_list)+1)
+        random.shuffle(aug_list)
+        aug_list = aug_list[:len_aug]
+        self.img_list.extend(aug_list)
+        self.score_list += [0.0]*len_aug
+        self.ref_list.extend(aug_list)
 
     def _read_lists(self):
-        img_path = join(self.list_dir, self.subset + '_images.txt')
-        ref_path = join(self.list_dir, self.subset + '_labels.txt')
-        score_path = join(self.list_dir, self.subset + '_scores.txt')
+        img_path = join(self.list_dir, self.subset + '_data.json')
 
         assert exists(img_path)
 
-        self.img_list = [line.strip() for line in open(img_path, 'r')]
-        self.ref_list = [line.strip() for line in open(ref_path, 'r')]
+        with open(img_path, 'r') as fp:
+            data_dict = json.load(fp)
 
-        if exists(score_path):
-            self.score_list = [float(line) for line in open(score_path, 'r')]
+        self.img_list = data_dict['img']
+        self.ref_list = data_dict.get('ref', self.img_list)
+        self.score_list = data_dict.get('score', [0.0]*len(self.img_list))
 
-        if self.phase == 'train':
-            extra = self.ref_list[::115]*20
-            self.img_list.extend(extra)
-            self.ref_list.extend(extra)
 
-            self.img_list *= 16
-            self.ref_list *= 16
+class TID2013Dataset(IQADataset):
+    def _read_lists(self):
+        super()._read_lists()
+        # For TID2013
+        self.score_list = [(9.0 - s) / 9.0 * 100.0 for s in self.score_list]
 
-            if exists(score_path):
-                self.score_list.extend([9.0]*len(extra))
-                self.score_list *= 16
+
+class KonIQDataset(IQADataset):
+    def _read_lists(self):
+        super()._read_lists()
+        self.score_list = [(1.0 - s) * 100.0 for s in self.score_list]
 
 
 class Transforms:
@@ -116,7 +126,7 @@ class Transforms:
     ------------------------------------
     
     Several things to fix and improve:
-    1. Strong couling with Dataset cuz transformation types can't 
+    1. Strong coupling with Dataset cuz transformation types can't 
         be simply assigned in training or testing code. (e.g. given
         a list of transforms as parameters to construct Dataset Obj)
     2. Might be unsafe in multi-thread cases
@@ -170,7 +180,7 @@ class Transforms:
             ub = random.randint(0, h-crop_size)
             lb = random.randint(0, w-crop_size)
             pos = (ub, ub+crop_size, lb, lb+crop_size)
-        return img[...,pos[0]:pos[1],pos[-2]:pos[-1],:], pos
+        return img[...,pos[0]:pos[1],pos[-2]:pos[-1]], pos
 
     def _extract_patches(self, img, ptch_size):
         h, w = img.shape[-3:-1]

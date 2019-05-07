@@ -64,7 +64,6 @@ class IQANet(nn.Module):
     The CNN model for full-reference image quality assessment
     
     Implements a siamese network at first and then there is regression
-    ---------------------------------------------------- Nothing special
     """
     def __init__(self, weighted=False):
         super(IQANet, self).__init__()
@@ -77,10 +76,8 @@ class IQANet(nn.Module):
         self.fl3 = DoubleConv(64, 128)
 
         # Fusion layers
-        self.cl1 = SingleConv(384, 128)
-        # self.cl2 = SingleConv(128, 64)
+        self.cl1 = SingleConv(128*3, 128)
         self.cl2 = nn.Conv2d(128, 64, kernel_size=2)
-        # Wulala stop here
 
         # Regression layers
         self.rl1 = nn.Linear(64, 32)
@@ -90,10 +87,6 @@ class IQANet(nn.Module):
             self.wl1 = nn.Linear(64, 32)
             self.wl2 = nn.Linear(32, 1)
 
-        # Utilities?
-        self.dropout = nn.Dropout(0.5)
-        # self.pool = nn.MaxPool2d(kernel_size=4, stride=(4,4), padding=(0,0))
-
         self._initialize_weights()
 
     def extract_feature(self, x):
@@ -101,9 +94,6 @@ class IQANet(nn.Module):
         y = self.fl1(x)
         y = self.fl2(y)
         y = self.fl3(y)
-        # y = self.fl4(y)
-        # y = self.fl5(y)
-        # y = self.pool(y)
 
         return y
         
@@ -124,9 +114,6 @@ class IQANet(nn.Module):
 
         flatten = f_com.view(f_com.shape[0], -1)
 
-        # y = self.dropout(flatten)
-        # y = self.rl1(y)
-        # y = self.dropout(y)
         y = self.rl1(flatten)
         y = self.rl2(y)
 
