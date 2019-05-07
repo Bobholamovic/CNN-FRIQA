@@ -1,5 +1,5 @@
 # CNN-FRIQA
-Convulutional Neural Network for Full-Reference color Image Quality Assessment  
+Convolutional Neural Network for Full-Reference color Image Quality Assessment  
 
 This is a lightweight version of [deepIQA](https://arxiv.org/abs/1612.01697). The original project of deepIQA is [here](https://github.com/dmaniry/deepIQA) and the paper is [here](https://arxiv.org/abs/1612.01697). 
   
@@ -14,7 +14,7 @@ This is a lightweight version of [deepIQA](https://arxiv.org/abs/1612.01697). Th
 ## Usage
 
 ### Data Preparation
-Now the `.json` files are utilized for the data lists. The relative paths of the distorted images and the reference images to `data-dir` and the quality scores (ground-truth values) are stored in three arrays of a `json` object, with the fields specified as `img`, `ref`, and `score`, respectively. For example, `train_data.json` may look like this:
+Now the data lists are stored in `.json` files. The relative paths of the distorted images and the reference images to `data-dir` and the quality scores (ground-truth values) are contained in three arrays of a `json` object, with the fields specified as `img`, `ref`, and `score`, respectively. For example, `train_data.json` may look like this:
 
 ```
 {
