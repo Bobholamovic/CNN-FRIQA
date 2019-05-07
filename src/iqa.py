@@ -48,7 +48,7 @@ def validate(val_loader, model, criterion, show_step=False):
                     "Loss {loss.val:.4f} ({loss.avg:.4f})\t"
                     "Output {out:.4f}\t"
                     "Target {tar:.4f}\t"
-                    .format(i, len_val, loss=losses, 
+                    .format(i+1, len_val, loss=losses, 
                     out=output, tar=score))
 
 
@@ -82,7 +82,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
 
         pb.show(i, "[{0:d}/{1:d}]\t"
                 "Loss {loss.val:.4f} ({loss.avg:.4f})\t"
-                .format(i, len_train, loss=losses))
+                .format(i+1, len_train, loss=losses))
                 
 def test(test_data_loader, model):
     scores = []
@@ -108,7 +108,7 @@ def test(test_data_loader, model):
             pb.show(i, "Test: [{0:5d}/{1:5d}]\t"
                     "Score: {2:.4f}\t"
                     "Label: {3:.4f}"
-                    .format(i, len_test, float(output), float(score)))
+                    .format(i+1, len_test, float(output), float(score)))
 
             scores.append(output)
     
