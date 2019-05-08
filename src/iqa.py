@@ -162,7 +162,8 @@ def train_iqa(args):
             print("=> loading checkpoint '{}'".format(resume))
             checkpoint = torch.load(resume)
             start_epoch = checkpoint['epoch']
-            min_loss = checkpoint['min_loss'] if not args.anew else 0.0
+            if not args.anew:
+                min_loss = checkpoint['min_loss']
             model.load_state_dict(checkpoint['state_dict'])
             print("=> loaded checkpoint '{}' (epoch {})"
                   .format(resume, start_epoch))
