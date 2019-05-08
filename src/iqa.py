@@ -85,7 +85,6 @@ def train(train_loader, model, criterion, optimizer, epoch):
                 .format(i+1, len_train, loss=losses))
                 
 def test(test_data_loader, model):
-    scores = []
     srocc = SROCC()
     plcc = PLCC()
     rmse = RMSE()
@@ -109,12 +108,6 @@ def test(test_data_loader, model):
                     "Score: {2:.4f}\t"
                     "Label: {3:.4f}"
                     .format(i+1, len_test, float(output), float(score)))
-
-            scores.append(output)
-    
-    # Write scores to file
-    with open('../test/scores.txt', 'w') as f:
-        stat = list(map(lambda s: f.write(str(s)+'\n'), scores))
 
     print("\n\nSROCC: {0:.4f}\n"
             "PLCC: {1:.4f}\n"
