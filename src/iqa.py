@@ -162,7 +162,7 @@ def train_iqa(args):
             print("=> loading checkpoint '{}'".format(resume))
             checkpoint = torch.load(resume)
             start_epoch = checkpoint['epoch']
-            min_loss = checkpoint['min_loss']
+            min_loss = checkpoint['min_loss'] if not args.anew else 0.0
             model.load_state_dict(checkpoint['state_dict'])
             print("=> loaded checkpoint '{}' (epoch {})"
                   .format(resume, start_epoch))
@@ -293,6 +293,7 @@ def parse_args():
     parser.add_argument('--dump_per', type=int, default=50, 
                         help='the number of epochs to make a checkpoint')
     parser.add_argument('--dataset', type=str, default='TID2013')
+    parser.add_argument('--anew', action='store_true')
 
     args = parser.parse_args()
 
