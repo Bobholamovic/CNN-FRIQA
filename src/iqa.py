@@ -14,7 +14,7 @@ import torch.backends.cudnn as cudnn
 from torch import nn
 
 from model import IQANet
-from dataset import TID2013Dataset as Dataset
+from dataset import TID2013Dataset, WaterlooDataset
 from utils import AverageMeter, SROCC, PLCC, RMSE
 from utils import SimpleProgressBar as ProgressBar
 
@@ -299,6 +299,7 @@ def parse_args():
                         action='store_true')
     parser.add_argument('--dump_per', type=int, default=50, 
                         help='the number of epochs to make a checkpoint')
+    parser.add_argument('--dataset', type=str, default='TID2013')
 
     args = parser.parse_args()
 
@@ -307,6 +308,9 @@ def parse_args():
 
 def main():
     args = parse_args()
+    # Choose dataset
+    global Dataset
+    Dataset = globals().get(args.dataset+'Dataset', None)
     if args.cmd == 'train':
         train_iqa(args)
     elif args.cmd == 'test':

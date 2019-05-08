@@ -114,7 +114,7 @@ class TID2013Dataset(IQADataset):
         self.score_list = [(9.0 - s) / 9.0 * 100.0 for s in self.score_list]
 
 
-class KonIQDataset(IQADataset):
+class WaterlooDataset(IQADataset):
     def _read_lists(self):
         super()._read_lists()
         self.score_list = [(1.0 - s) * 100.0 for s in self.score_list]
