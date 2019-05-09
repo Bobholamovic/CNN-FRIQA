@@ -11,8 +11,9 @@ from skimage import io
 from os.path import join, exists
 from utils import limited_instances, SimpleProgressBar
 
+
 class IQADataset(torch.utils.data.Dataset):
-    def __init__(self, data_dir, phase, ptch_size=32, n_ptchs=16, sample_once=False, \
+    def __init__(self, data_dir, phase, ptch_size=32, n_ptchs=16, sample_once=False, 
                     subset='', list_dir=''):
         super(IQADataset, self).__init__()
 
@@ -85,14 +86,25 @@ class IQADataset(torch.utils.data.Dataset):
         if self.phase == 'test':
             return
         # Make samples from the reference images
-        # This appears CRITICAL for the training effect!
-        len_aug = len(self.ref_list) if self.phase == 'train' else 10
+        # The number of the reference samples appears 
+        # CRITICAL for the training effect!
+        len_aug = len(self.ref_list)//5 if self.phase == 'train' else 10
         aug_list = self.ref_list*(len_aug//len(self.ref_list)+1)
         random.shuffle(aug_list)
         aug_list = aug_list[:len_aug]
         self.img_list.extend(aug_list)
         self.score_list += [0.0]*len_aug
         self.ref_list.extend(aug_list)
+
+        if self.phase == 'train':
+            # More samples in one epoch
+            # This accelerates the training indeed as the cache
+            # of the file system could then be fully leveraged
+            # And also, augment the data in terms of number
+            mul_aug = 16
+            self.img_list *= mul_aug
+            self.ref_list *= mul_aug
+            self.score_list *= mul_aug
 
     def _read_lists(self):
         img_path = join(self.list_dir, self.subset + '_data.json')
