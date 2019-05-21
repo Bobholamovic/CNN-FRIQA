@@ -13,15 +13,13 @@ from utils import limited_instances, SimpleProgressBar
 
 
 class IQADataset(torch.utils.data.Dataset):
-    def __init__(self, data_dir, phase, ptch_size=32, n_ptchs=16, sample_once=False, 
-                    subset='', list_dir=''):
+    def __init__(self, data_dir, phase, n_ptchs=16, sample_once=False, subset='', list_dir=''):
         super(IQADataset, self).__init__()
 
         self.list_dir = data_dir if not list_dir else list_dir
         self.data_dir = data_dir
         self.phase = phase
         self.subset = phase if not subset.split() else subset
-        self.ptch_size = ptch_size
         self.n_ptchs = n_ptchs
         self.img_list = []
         self.ref_list = []
@@ -70,7 +68,7 @@ class IQADataset(torch.utils.data.Dataset):
         return io.imread(join(self.data_dir, name))
 
     def _to_patch_tensors(self, img, ref):
-            img_ptchs, ref_ptchs = self.tfs.to_patches(img, ref, ptch_size=self.ptch_size, n_ptchs=self.n_ptchs)
+            img_ptchs, ref_ptchs = self.tfs.to_patches(img, ref, ptch_size=32, n_ptchs=self.n_ptchs)
             img_ptchs, ref_ptchs = self.tfs.to_tensor(img_ptchs, ref_ptchs)
             return img_ptchs, ref_ptchs
 

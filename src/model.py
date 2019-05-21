@@ -129,6 +129,7 @@ class IQANet(nn.Module):
             # Calculate average score for each image
             score = torch.mean(y.view(n_imgs, n_ptchs_per_img), dim=1)
 
+        # On the validation and the testing phase, squeeze the score to a scalar
         return score.squeeze()
 
     def _initialize_weights(self):

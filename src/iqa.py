@@ -122,7 +122,6 @@ def train_iqa(args):
     data_dir = args.data_dir
     list_dir = args.list_dir
     resume = args.resume
-    patch_size = args.patch_size
     n_ptchs = args.n_ptchs_per_img
 
     print(' '.join(sys.argv))
@@ -136,13 +135,13 @@ def train_iqa(args):
     # Data loaders
     train_loader = torch.utils.data.DataLoader(
         Dataset(data_dir, 'train', list_dir=list_dir, 
-        ptch_size=patch_size, n_ptchs=n_ptchs),
+        n_ptchs=n_ptchs),
         batch_size=batch_size, shuffle=True, num_workers=num_workers,
         pin_memory=True, drop_last=True
     )
     val_loader = torch.utils.data.DataLoader(
         Dataset(data_dir, 'val', list_dir=list_dir, 
-        ptch_size=patch_size, n_ptchs=n_ptchs, sample_once=True),
+        n_ptchs=n_ptchs, sample_once=True),
         batch_size=1, shuffle=False, num_workers=0,
         pin_memory=True
     )
@@ -215,7 +214,7 @@ def test_iqa(args):
 
     test_loader = torch.utils.data.DataLoader(
         Dataset(data_dir, phase='test', list_dir=list_dir, 
-        ptch_size=args.patch_size, n_ptchs=args.n_ptchs_per_img,
+        n_ptchs=args.n_ptchs_per_img,
         subset=subset), 
         batch_size=batch_size, shuffle=False,
         num_workers=num_workers, pin_memory=True
@@ -269,14 +268,12 @@ def parse_args():
                         help='List dir to look for train_images.txt etc. '
                              'It is the same with --data-dir if not set.')
     parser.add_argument('-n', '--n-ptchs-per-img', type=int, default=32, metavar='N', 
-                        help='number of patches for each image (default: 16)')
-    parser.add_argument('-p', '--patch-size', type=int, default=32, metavar='P', 
-                        help='patch size (default: 32)')
+                        help='number of patches for each image (default: 32)')
     parser.add_argument('--step', type=int, default=200)
     parser.add_argument('--batch-size', type=int, default=64, metavar='B',
                         help='input batch size for training (default: 64)')
     parser.add_argument('--epochs', type=int, default=1000, metavar='NE',
-                        help='number of epochs to train (default: 100)')
+                        help='number of epochs to train (default: 1000)')
     parser.add_argument('--lr', type=float, default=1e-4, metavar='LR',
                         help='learning rate (default: 1e-4)')
     parser.add_argument('--lr-mode', type=str, default='const')
