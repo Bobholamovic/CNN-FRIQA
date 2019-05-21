@@ -2,6 +2,7 @@
 Some Useful Functions and Classes
 """
 
+import shutil
 from abc import ABCMeta, abstractmethod
 from threading import Lock
 from sys import stdout
