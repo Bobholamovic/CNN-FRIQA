@@ -116,33 +116,32 @@ def limited_instances(n):
 
 
 class SimpleProgressBar:
-    def __init__(self, total_len, pat='#', show_step=False, print_freq=1):
+    def __init__(self, total_len, pat='#', bar_len=50, show_step=False, print_freq=1):
         self.len = total_len
         self.pat = pat
+        self.bar_len = 50
         self.show_step = show_step
         self.print_freq = print_freq
         self.out_stream = stdout
         self.__len_last_str = 0
 
     def show(self, cur, desc):
-        bar_len, _ = shutil.get_terminal_size()
-        # The tab between desc and the progress bar should be counted.
-        # And the '|'s on both ends be counted, too
-        bar_len = bar_len - self.len_with_tabs(desc+'\t') - 2
-        bar_len = int(bar_len*0.8)
-        cur_pos = int(((cur+1)/self.len)*bar_len)
-        cur_bar = '|'+self.pat*cur_pos+' '*(bar_len-cur_pos)+'|'
+        cur_bar_len = int(((cur+1)/self.len)*self.bar_len)
+        cur_bar = '|'+self.pat*cur_bar_len+' '*(self.bar_len-cur_bar_len)+'|'
+        
+        disp_str = "{0}\t\t{1}".format(desc, cur_bar)
 
-        disp_str = "{0}\t{1}".format(desc, cur_bar)
-
-        # Clean
-        self.write('\033[K')
+        # Handle tabs and misalignment
+        len_with_tabs = self.len_with_tabs(disp_str)
+        # Clear
+        self.write(' '*self.__len_last_str)
+        self.__len_last_str = len_with_tabs
 
         if self.show_step and (cur % self.print_freq) == 0:
             self.write(disp_str, new_line=True)
             return
 
-        if (cur+1) < self.len:
+        if cur_bar_len < self.bar_len:
             self.write(disp_str)
         else:
             self.write(disp_str, new_line=True)
