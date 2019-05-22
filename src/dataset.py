@@ -19,7 +19,7 @@ class IQADataset(torch.utils.data.Dataset):
         self.list_dir = data_dir if not list_dir else list_dir
         self.data_dir = data_dir
         self.phase = phase
-        self.subset = phase if not subset.split() else subset
+        self.subset = phase if not subset.strip() else subset
         self.n_ptchs = n_ptchs
         self.img_list = []
         self.ref_list = []
