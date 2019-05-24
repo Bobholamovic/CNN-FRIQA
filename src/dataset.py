@@ -193,6 +193,7 @@ class Transforms:
         return img[...,pos[0]:pos[1],pos[-2]:pos[-1]], pos
 
     def _extract_patches(self, img, ptch_size):
+        # Crop non-overlapping patches as the stride equals patch size
         h, w = img.shape[-3:-1]
         nh, nw = h//ptch_size, w//ptch_size
         assert(nh>0 and nw>0)
