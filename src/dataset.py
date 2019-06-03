@@ -190,7 +190,7 @@ class Transforms:
             ub = random.randint(0, h-crop_size)
             lb = random.randint(0, w-crop_size)
             pos = (ub, ub+crop_size, lb, lb+crop_size)
-        return img[...,pos[0]:pos[1],pos[-2]:pos[-1]], pos
+        return img[...,pos[0]:pos[1],pos[-2]:pos[-1],:], pos
 
     def _extract_patches(self, img, ptch_size):
         # Crop non-overlapping patches as the stride equals patch size
